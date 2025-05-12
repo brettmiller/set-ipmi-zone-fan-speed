@@ -85,9 +85,9 @@ while true; do
     elif (( TEMP >= 50 )); then
       SET_FAN=0x1E # 30%
       speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 50"
-    elif (( TEMP >= 45 )); then
+    elif (( TEMP > 45 )); then
       SET_FAN=0x19 # 25%
-      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 45"
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "> 45"
     fi
   done
   sleep 5
