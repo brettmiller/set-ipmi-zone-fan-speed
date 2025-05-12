@@ -24,7 +24,7 @@ ORIG_FAN_MODE=$(${IPMITOOL} raw 0x30 0x45 0x00 | tr -d ' ')
 trap "${IPMITOOL} raw 0x30 0x45 0x01 0x${ORIG_FAN_MODE}" EXIT
 
 # Need to set the fan mode to FULL mode for the fan speed settings to work correctly.
-# Last value is mode: 0x00 is normal,  0x01, is full, 0x02 is optimal
+# Last value is mode: 0x00 is normal, 0x01 is full, 0x02 is optimal
 ${IPMITOOL} raw 0x30 0x45 0x01 0x01
 
 # Check if the fan speed needs to be set. I.E. the fan speed of the zone doesn't equals what is set.
