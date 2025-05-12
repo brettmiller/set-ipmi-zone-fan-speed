@@ -27,8 +27,8 @@ trap "${IPMITOOL} raw 0x30 0x45 0x01 0x${ORIG_FAN_MODE}" EXIT
 # Last value is mode: 0x00 is normal, 0x01 is full, 0x02 is optimal
 ${IPMITOOL} raw 0x30 0x45 0x01 0x01
 
-# Check if the fan speed needs to be set. I.E. the fan speed of the zone doesn't equals what is set.
-# If needs to be set, set it. Pass in the ZONE, speed to set(hex of the %), and the checked
+# Check if the fan speed needs to be set. I.E. the fan speed of the zone doesn't equal what is to be
+# set. If it needs to be set, set it. Pass in the ZONE, speed to set(hex of the %), and the checked
 # value (eg. the ">=50" in the `if (( TEMP >= 50 ))` statements )
 function speed_needs_set {
   local ZONE=$1
@@ -58,12 +58,7 @@ while true; do
     if (( TEMP <= 45 )); then
       SET_FAN=0x14 # 20%
       # if zone TEMP is <= 45 and fan isn't set to 20% (14/0x14) then set it
-      #if (( 0x$( ${IPMITOOL} raw 0x30 0x70 0x66 0x00 ${CPU_ZONES[${CPU}]} | tr -d ' ') != ${SET_FAN} )); then
-      #if speed_needs_set "${CPU_ZONES[${CPU}]}" "${SET_FAN}" ; then
       speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "<= 45"
-      #if speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} ; then
-      #  echo "Zone ${CPU_ZONES[${CPU}]##0x0} temp ${TEMP} is at or under 45, setting fan speed to 20%"
-      #fi
     # else if TEMP over VAL set to speed, starting with highest so it
     # doesn't step through each it goes straight to the needed speed
     elif (( TEMP >= 85 )); then
