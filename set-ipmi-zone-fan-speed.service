@@ -1,5 +1,5 @@
 [Unit]
-Description=Control fan speeds via IPMI per zone based on temp on CPU in each zone
+Description=Control fan speeds via IPMI per zone based on temp of CPU in each zone
 After=syslog.service
 
 [Service]
