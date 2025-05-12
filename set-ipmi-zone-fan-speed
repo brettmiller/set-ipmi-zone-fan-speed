@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# inspired by https://forums.servethehome.com/index.php?threads/supermicro-x9-x10-x11-fan-speed-control.10059/post-346716,
+# but taken much further
+#
+# Set fan speed per zone
+
+# add `sudo` to  IPMITOOL if not root (for testing)
+if (( $(id -u) == 0 )); then
+  IPMITOOL='/usr/bin/ipmitool'
+else
+  IPMITOOL='sudo /usr/bin/ipmitool'
+fi
+
+# ipmi raw commmand to set zone fan speed w/o the zone and speed (6th, 7th positions)
+IPMI_RAW_SET_FAN="raw 0x30 0x70 0x66 0x01"
+
+# hash w/ zone for each CPU
+declare -A CPU_ZONES=([CPU1]=0x00 [CPU2]=0x01)
+
+# reset fan mode to optimal on EXIT (reset after it's changed below)
+trap "${IPMITOOL} raw 0x30 0x45 0x01 0x02" EXIT
+
+# Need to set the fan mode to FULL mode for the fan speed settings to work correctly.
+# Last value is mode: 0x00 is normal,  0x01, is full, 0x02 is optimal
+${IPMITOOL} raw 0x30 0x45 0x01 0x01
+
+# Check if the fan speed needs to be set. I.E. the fan speed of the zone doesn't equals what is set.
+# If needs to be set, set it. Pass in the ZONE, speed to set(hex of the %), and the checked
+# value (eg. the ">=50" in the `if (( TEMP >= 50 ))` statements )
+function speed_needs_set {
+  local ZONE=$1
+  local SET_SPEED=$2
+  local CHECK_SPEED=$3
+  ## testing echos
+  #echo "zone: $ZONE"
+  #echo "Speed to set: $SET_SPEED"
+
+  # "raw 0x30 0x70 0x66 0x00 ${ZONE}" gets the currenlty set speed of the zone
+  if (( 0x$( ${IPMITOOL} raw 0x30 0x70 0x66 0x00 ${ZONE} | tr -d ' ') != ${SET_SPEED} )); then
+    ${IPMITOOL} ${IPMI_RAW_SET_FAN} ${ZONE} ${SET_SPEED}
+    # log to termal if in terminal otherwise to system log (syslog or journald)
+    if [[ -t 1 ]]; then
+      echo "$(basename $0): Zone ${ZONE##0x0} CPU: temp ${TEMP} ${CHECK_SPEED}, setting fan speed to $((SET_SPEED))%"
+    else
+      logger "$(basename $0): Zone ${ZONE##0x0} CPU: temp ${TEMP} ${CHECK_SPEED}, setting fan speed to $((SET_SPEED))%"
+    fi
+  fi
+}
+
+while true; do
+  for CPU in ${!CPU_ZONES[@]}; do
+    TEMP=$( ${IPMITOOL} sensor | grep ${CPU} | cut -d'|' -f2 | tr -d ' ')
+    TEMP=${TEMP%%.*} # stip decimal and after
+    # if TEMP under VAL set to speed if not already set
+    if (( TEMP <= 45 )); then
+      SET_FAN=0x14 # 20%
+      # if zone TEMP is <= 45 and fan isn't set to 20% (14/0x14) then set it
+      #if (( 0x$( ${IPMITOOL} raw 0x30 0x70 0x66 0x00 ${CPU_ZONES[${CPU}]} | tr -d ' ') != ${SET_FAN} )); then
+      #if speed_needs_set "${CPU_ZONES[${CPU}]}" "${SET_FAN}" ; then
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "<= 45"
+      #if speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} ; then
+      #  echo "Zone ${CPU_ZONES[${CPU}]##0x0} temp ${TEMP} is at or under 45, setting fan speed to 20%"
+      #fi
+    # else if TEMP over VAL set to speed, starting with highest so it
+    # doesn't step through each it goes straight to the needed speed
+    elif (( TEMP >= 85 )); then
+      SET_FAN=0x64 # 100%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 85"
+    elif (( TEMP >= 80 )); then
+      SET_FAN=0x5A # 90%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 80"
+    elif (( TEMP >= 75 )); then
+      SET_FAN=0x50 # 80%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 75"
+    elif (( TEMP >= 70 )); then
+      SET_FAN=0x46 # 70%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 70"
+    elif (( TEMP >= 65 )); then
+      SET_FAN=0x3C # 60%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 65"
+    elif (( TEMP >= 60 )); then
+      SET_FAN=0x32 # 50%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 60"
+    elif (( TEMP >= 55 )); then
+      SET_FAN=0x28 # 40%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 55"
+    elif (( TEMP >= 50 )); then
+      SET_FAN=0x1E # 30%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 50"
+    elif (( TEMP >= 45 )); then
+      SET_FAN=0x19 # 25%
+      speed_needs_set ${CPU_ZONES[${CPU}]} ${SET_FAN} "=> 45"
+    fi
+  done
+  sleep 5
+done
