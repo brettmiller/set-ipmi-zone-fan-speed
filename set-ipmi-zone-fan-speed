@@ -18,8 +18,10 @@ IPMI_RAW_SET_FAN="raw 0x30 0x70 0x66 0x01"
 # hash w/ zone for each CPU
 declare -A CPU_ZONES=([CPU1]=0x00 [CPU2]=0x01)
 
-# reset fan mode to optimal on EXIT (reset after it's changed below)
-trap "${IPMITOOL} raw 0x30 0x45 0x01 0x02" EXIT
+# get current fan mode
+ORIG_FAN_MODE=$(${IPMITOOL} raw 0x30 0x45 0x00 | tr -d ' ')
+# reset fan mode to original setting on EXIT (reset after it's changed below)
+trap "${IPMITOOL} raw 0x30 0x45 0x01 0x${ORIG_FAN_MODE}" EXIT
 
 # Need to set the fan mode to FULL mode for the fan speed settings to work correctly.
 # Last value is mode: 0x00 is normal,  0x01, is full, 0x02 is optimal
