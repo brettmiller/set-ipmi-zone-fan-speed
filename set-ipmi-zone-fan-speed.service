@@ -1,0 +1,11 @@
+[Unit]
+Description=Control fan speeds via IPMI per zone based on temp on CPU in each zone
+After=syslog.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/set-ipmi-zone-fan-speed
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
